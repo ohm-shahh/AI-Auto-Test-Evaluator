@@ -1,0 +1,3 @@
+1. Gradient Descent is an iterative optimization algorithm used to minimize the cost/loss function by moving in the direction of steepest descent (negative gradient of the loss with respect to parameters).
+2. Batch Gradient Descent computes gradients over the entire dataset before updating parameters (stable but slow on large datasets). SGD updates weights for each individual training example (fast, introduces noise that helps escape local minima).
+3. The learning rate controls the step size taken during each iteration. A very high learning rate can overshoot the global minimum and diverge; a very small learning rate leads to extremely slow convergence.

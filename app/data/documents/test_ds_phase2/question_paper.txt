@@ -1,0 +1,5 @@
+SECTION A
+Q1. Explain the mechanism of collision resolution in Hash Tables using Separate Chaining vs Open Addressing (Linear Probing). [5 Marks]
+Section B
+2(a) Describe Breadth-First Search (BFS) algorithm on an undirected graph and state its time complexity. [5 Marks]
+2(b) Contrast BFS with Depth-First Search (DFS) in terms of memory requirements and data structures used. [5 Marks]
