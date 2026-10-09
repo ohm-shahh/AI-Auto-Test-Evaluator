@@ -11,12 +11,31 @@ class EvaluatorService:
     def __init__(self, model_name: str = "gemma3:270m"):
         self.model_name = model_name
 
+<<<<<<< HEAD
     def evaluate_submission(self, student_answer: str, question: str, model_answer: str, max_marks: float = 10.0) -> dict:
         """
         Semantically evaluates a student's answer against a model answer/rubric using local Ollama LLM.
         Returns a structured dictionary with marks awarded, reasoning, matched concepts, and feedback.
         """
         logger.info(f"Evaluating student answer against model answer using '{self.model_name}'...")
+=======
+    def evaluate_segmented_answer(
+        self, 
+        student_answer: str, 
+        question: str, 
+        model_answer: str, 
+        max_marks: float,
+        rubric: str = "",
+        retrieved_context: str = ""
+    ) -> dict:
+        """
+        Semantically evaluates a single segmented student answer against a model answer/rubric.
+        """
+        logger.info(f"Evaluating answer with model '{self.model_name}'...")
+        
+        context_block = f"\n=== RETRIEVED KNOWLEDGE CONTEXT ===\n{retrieved_context}\n" if retrieved_context else ""
+        rubric_block = f"\n=== MARKING RUBRIC ===\n{rubric}\n" if rubric else ""
+>>>>>>> origin/master
         
         prompt = f"""
 You are an expert AI Academic Tutor and fair evaluator.
@@ -27,15 +46,24 @@ Your job is to semantically evaluate a student's answer against the teacher's mo
 
 === MAXIMUM MARKS ===
 {max_marks}
+<<<<<<< HEAD
 
 === TEACHER'S MODEL ANSWER & RUBRIC ===
 {model_answer}
 
 === STUDENT'S EXTRACTED ANSWER ===
+=======
+{rubric_block}
+=== TEACHER'S MODEL ANSWER ===
+{model_answer}
+{context_block}
+=== STUDENT'S ANSWER ===
+>>>>>>> origin/master
 {student_answer[:2000]}
 
 === INSTRUCTIONS ===
 1. Compare the student's answer conceptually with the model answer.
+<<<<<<< HEAD
 2. Calculate marks out of {max_marks} based on correctness, clarity, and coverage of key points.
 3. Identify which key concepts the student explained well.
 4. Identify which important points or concepts are missing or incorrect.
@@ -55,6 +83,25 @@ JSON format:
 }}
 """
         # Prioritize ultra-lightweight models that fit in VRAM instantly without OOM
+=======
+2. Award marks out of {max_marks} based on the rubric. Do NOT award more than {max_marks}.
+3. Accept correct equivalent wording and valid alternative explanations.
+4. If the answer is completely missing or empty, explicitly mark it 0.
+5. Provide concise, rubric-grounded scoring reasoning.
+6. Identify which important points or concepts are missing or incorrect.
+7. Provide encouraging, actionable tutor feedback.
+
+Output MUST be valid, raw JSON only. Do not include markdown formatting.
+JSON format:
+{{
+  "marks_awarded": 3.0,
+  "max_marks": {max_marks},
+  "reasoning": "Brief explanation of how the score was determined based on the rubric.",
+  "missing_concepts": ["Concept not adequately explained"],
+  "feedback": "Specific advice to improve the answer"
+}}
+"""
+>>>>>>> origin/master
         models_to_try = ["gemma3:270m", "gemma3:latest", "phi3:latest"]
         
         for model in models_to_try:
@@ -75,17 +122,40 @@ JSON format:
                 content = content.strip()
                 
                 parsed = json.loads(content)
+<<<<<<< HEAD
                 logger.info(f"Successfully evaluated submission with model '{model}'. Score: {parsed.get('marks_obtained')}/{max_marks}")
+=======
+                # Cap marks
+                marks = parsed.get('marks_awarded', 0)
+                try:
+                    marks = float(marks)
+                    marks = max(0.0, min(float(max_marks), marks))
+                except (ValueError, TypeError):
+                    marks = 0.0
+                parsed['marks_awarded'] = marks
+                parsed['max_marks'] = float(max_marks)
+                parsed['needs_teacher_review'] = False
+                parsed['evaluation_status'] = "completed"
+                
+                logger.info(f"Evaluated with model '{model}'. Score: {marks}/{max_marks}")
+>>>>>>> origin/master
                 return parsed
             except Exception as e:
                 logger.warning(f"Evaluation with model '{model}' encountered issue: {str(e)}")
                 continue
 
+<<<<<<< HEAD
         # Rule-based fallback if Ollama service is busy or offline
         logger.warning("Using heuristic semantic evaluation fallback...")
         return self._heuristic_fallback_evaluation(student_answer, question, model_answer, max_marks)
 
     def _heuristic_fallback_evaluation(self, student_answer: str, question: str, model_answer: str, max_marks: float) -> dict:
+=======
+        logger.warning("Using heuristic semantic evaluation fallback...")
+        return self._heuristic_fallback_evaluation(student_answer, model_answer, max_marks)
+
+    def _heuristic_fallback_evaluation(self, student_answer: str, model_answer: str, max_marks: float) -> dict:
+>>>>>>> origin/master
         student_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', student_answer.lower()))
         model_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', model_answer.lower()))
         
@@ -94,6 +164,7 @@ JSON format:
         else:
             overlap = len(student_words.intersection(model_words)) / max(1, len(model_words))
             
+<<<<<<< HEAD
         marks = round(min(max_marks, max(1.0, overlap * max_marks * 1.15)), 1)
         pct = round((marks / max_marks) * 100, 1)
         
@@ -108,6 +179,18 @@ JSON format:
             "concepts_missing": ["Further mathematical breakdown or specific step-by-step elaboration suggested"],
             "reasoning": f"Student demonstrated strong conceptual alignment with the teacher's model answer key ({pct}% coverage).",
             "constructive_feedback": "Great submission! To secure full marks, ensure you elaborate further on specific edge cases and trade-offs."
+=======
+        marks = round(min(float(max_marks), max(1.0, overlap * float(max_marks) * 1.15)), 1)
+        
+        return {
+            "marks_awarded": marks,
+            "max_marks": max_marks,
+            "reasoning": f"Student demonstrated conceptual alignment with the key ({round(overlap*100,1)}% coverage).",
+            "missing_concepts": ["Heuristic fallback used; specific concept tracking unavailable."],
+            "feedback": "Review the model answer to ensure all points are fully addressed.",
+            "needs_teacher_review": True,
+            "evaluation_status": "completed"
+>>>>>>> origin/master
         }
 
 evaluator_service = EvaluatorService()

@@ -7,7 +7,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<<<<<<< HEAD
     <link rel="stylesheet" href="/static/css/style.css?v=2.2">
+=======
+    <link rel="stylesheet" href="/static/css/style.css">
+>>>>>>> origin/master
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -43,6 +47,17 @@
             </nav>
 
             <div class="header-actions">
+<<<<<<< HEAD
+=======
+                <div class="global-ocr-picker">
+                    <span class="global-ocr-label">OCR Engine:</span>
+                    <select id="global-ocr-engine" class="global-ocr-select" aria-label="Global OCR Engine">
+                        <option value="standard" selected>Standard OCR</option>
+                        <option value="chandra">Chandra OCR</option>
+                        <option value="qwen2.5vl">Qwen2.5-VL OCR</option>
+                    </select>
+                </div>
+>>>>>>> origin/master
                 <div class="status-indicator">
                     <span class="status-dot"></span>
                     <span class="status-text">Ollama Engine Online</span>
@@ -64,7 +79,11 @@
                     <p class="portal-subtitle">Select an active test posted by your instructor to upload your handwritten solution sheet or PDF.</p>
                 </div>
                 <div class="portal-stats-row">
+<<<<<<< HEAD
                     <div class="chip-badge"><span id="active-test-count">1</span> Active Tests</div>
+=======
+                    <div class="chip-badge"><span id="active-test-count">0</span> Active Tests</div>
+>>>>>>> origin/master
                 </div>
             </div>
 
@@ -370,11 +389,24 @@
                 </div>
 
                 <div class="dashboard-right">
+<<<<<<< HEAD
                     <div class="panel-header-row">
+=======
+                    <div class="panel-header-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 1.2rem;">
+>>>>>>> origin/master
                         <div>
                             <h3 class="section-heading" id="current-test-name">Select a test to view submissions</h3>
                             <p class="section-sub" id="current-test-meta">Real-time student evaluation records.</p>
                         </div>
+<<<<<<< HEAD
+=======
+                        <div id="teacher-kb-status-card" style="display: none; align-items: center; gap: 8px; background: rgba(248, 250, 252, 0.9); border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; padding: 6px 14px; font-size: 0.84rem;">
+                            <span style="font-weight: 600; color: var(--text-secondary, #64748b);">Knowledge Base:</span>
+                            <span id="teacher-kb-status-badge" style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.78rem;">Checking...</span>
+                            <button type="button" class="btn-text-link" id="teacher-reingest-btn" style="font-size: 0.78rem; text-decoration: underline; cursor: pointer; color: var(--accent-indigo);" title="Re-process knowledge ingestion">🔄 Re-index</button>
+                            <button type="button" class="btn-text-link" id="teacher-delete-test-btn" style="font-size: 0.78rem; text-decoration: underline; cursor: pointer; color: #ef4444; margin-left: 4px;" title="Delete this test entirely">🗑️ Delete Test</button>
+                        </div>
+>>>>>>> origin/master
                     </div>
 
                     <!-- Submissions Table Card -->
@@ -482,6 +514,7 @@
                                 </div>
                             </div>
 
+<<<<<<< HEAD
                             <!-- Right: Extracted Digital Text -->
                             <div class="inspect-panel">
                                 <div class="inspect-panel-header">
@@ -489,6 +522,22 @@
                                     <button type="button" class="btn-pill" id="inspect-copy-text-btn">Copy Text</button>
                                 </div>
                                 <pre class="raw-text-box inspect-text-box" id="inspect-extracted-text">Extracted text output...</pre>
+=======
+                            <!-- Right: Extracted Digital Text & Segmentation -->
+                            <div class="inspect-panel">
+                                <div class="inspect-panel-header" style="justify-content: space-between;">
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <h4>📝 Extracted Text</h4>
+                                        <div class="inspect-tabs-mini">
+                                            <button type="button" class="btn-mini-tab active" id="inspect-tab-raw">Raw OCR</button>
+                                            <button type="button" class="btn-mini-tab" id="inspect-tab-segmented">Segmented Answers</button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-pill" id="inspect-copy-text-btn">Copy Text</button>
+                                </div>
+                                <pre class="raw-text-box inspect-text-box" id="inspect-extracted-text">Extracted text output...</pre>
+                                <div class="segmented-answers-box inspect-text-box" id="inspect-segmented-answers" style="display: none; overflow-y: auto; background: #fff; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px;"></div>
+>>>>>>> origin/master
                             </div>
                         </div>
 
@@ -562,6 +611,7 @@
             <div class="ocr-lab-grid">
                 <!-- Controls -->
                 <div class="lab-sidebar">
+<<<<<<< HEAD
                     <!-- Engine Selection Card -->
                     <div class="card-box" style="margin-bottom: 1rem; border: 1.5px solid #e0e7ff; background: #ffffff;">
                         <div class="label-with-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -633,12 +683,18 @@
                         </div>
                     </div>
 
+=======
+>>>>>>> origin/master
                     <div class="card-box">
                         <h3 class="box-title">Document Input</h3>
                         <div class="upload-zone upload-zone-sm" id="lab-drop-zone">
                             <div class="upload-icon-circle">📂</div>
+<<<<<<< HEAD
                             <div class="upload-title" id="lab-drop-title">Drop PDF or Image</div>
                             <p class="upload-sub" style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 2px;">Supports student handwritten PDFs & camera photos</p>
+=======
+                            <div class="upload-title">Drop Image or PDF</div>
+>>>>>>> origin/master
                             <input type="file" id="lab-file-input" accept="image/*,application/pdf" style="display: none;">
                         </div>
 
@@ -654,6 +710,7 @@
 
                         <div class="divider"></div>
 
+<<<<<<< HEAD
                         <!-- Filter Switches for OpenCV (Available for Standard, notice for Surya) -->
                         <div id="lab-opencv-filters-section">
                             <h3 class="box-title">Filter Switches (OpenCV)</h3>
@@ -688,6 +745,41 @@
                         </div>
 
                         <button type="button" class="btn-primary btn-submit-full" id="lab-process-btn" disabled style="margin-top: 1.25rem;">
+=======
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <h3 class="box-title" style="margin-bottom: 0;">OCR Engine</h3>
+
+                        </div>
+                        <div class="form-group" style="margin-bottom: 1.15rem;">
+                            <select id="lab-ocr-engine" class="form-input" style="padding: 0.55rem 0.75rem; font-weight: 600; cursor: pointer; border-radius: var(--radius-sm);">
+                                <option value="standard" selected>Standard OCR</option>
+                                <option value="chandra">Chandra OCR</option>
+                                <option value="qwen2.5vl">Qwen2.5-VL OCR</option>
+                            </select>
+                        </div>
+
+                        <h3 class="box-title">Filter Switches</h3>
+                        <div class="toggle-list">
+                            <label class="switch-row">
+                                <span>Grayscale Conversion</span>
+                                <input type="checkbox" id="lab-gray" checked>
+                            </label>
+                            <label class="switch-row">
+                                <span>Bilateral Denoising</span>
+                                <input type="checkbox" id="lab-denoise" checked>
+                            </label>
+                            <label class="switch-row">
+                                <span>Automatic Deskew</span>
+                                <input type="checkbox" id="lab-deskew" checked>
+                            </label>
+                            <label class="switch-row">
+                                <span>Adaptive Binarization</span>
+                                <input type="checkbox" id="lab-thresh" checked>
+                            </label>
+                        </div>
+
+                        <button type="button" class="btn-primary btn-submit-full" id="lab-process-btn" disabled style="margin-top: 1.5rem;">
+>>>>>>> origin/master
                             Run Extraction Pipeline
                         </button>
                     </div>
@@ -695,7 +787,11 @@
 
                 <!-- Display & Telemetry -->
                 <div class="lab-workspace">
+<<<<<<< HEAD
                     <div class="stats-row">
+=======
+                    <div class="stats-row stats-row-4">
+>>>>>>> origin/master
                         <div class="mini-stat-card">
                             <span class="mini-stat-label">Execution Time</span>
                             <span class="mini-stat-val" id="lab-stat-time">-</span>
@@ -708,6 +804,13 @@
                             <span class="mini-stat-label">Skew Corrected</span>
                             <span class="mini-stat-val" id="lab-stat-skew">-</span>
                         </div>
+<<<<<<< HEAD
+=======
+                        <div class="mini-stat-card">
+                            <span class="mini-stat-label" id="lab-stat-engine-label">Engine Used</span>
+                            <span class="mini-stat-val" id="lab-stat-engine" style="font-size: 1.05rem;">Standard OCR</span>
+                        </div>
+>>>>>>> origin/master
                     </div>
 
                     <div class="panels-split">
@@ -743,6 +846,10 @@
     <!-- Notification Toast -->
     <div class="toast-container" id="toast-container"></div>
 
+<<<<<<< HEAD
     <script src="/static/js/app.js?v=2.2"></script>
+=======
+    <script src="/static/js/app.js"></script>
+>>>>>>> origin/master
 </body>
 </html>

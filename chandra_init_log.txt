@@ -1,0 +1,37 @@
+Model: datalab-to/chandra-ocr-2
+Loading weights:   0%|          | 0/724 [00:00<?, ?it/s]Loading weights:   0%|          | 1/724 [00:00<08:04,  1.49it/s]Loading weights:   0%|          | 2/724 [00:07<54:19,  4.51s/it]Loading weights:   1%|          | 4/724 [00:08<21:11,  1.77s/it]Loading weights:   1%|▏         | 10/724 [00:08<06:29,  1.83it/s]Loading weights:   2%|▏         | 14/724 [00:09<04:17,  2.76it/s]Loading weights:   2%|▏         | 15/724 [00:09<04:07,  2.86it/s]Loading weights:   3%|▎         | 23/724 [00:09<02:07,  5.49it/s]Loading weights:   4%|▎         | 27/724 [00:10<01:59,  5.84it/s]Loading weights:   4%|▍         | 29/724 [00:10<01:53,  6.10it/s]Loading weights:   5%|▍         | 35/724 [00:11<01:31,  7.54it/s]Loading weights:   5%|▍         | 36/724 [00:11<01:30,  7.56it/s]Loading weights:   6%|▌         | 41/724 [00:11<01:23,  8.16it/s]Loading weights:   6%|▌         | 43/724 [00:12<01:32,  7.39it/s]Loading weights:   6%|▌         | 45/724 [00:12<01:25,  7.95it/s]Loading weights:   6%|▋         | 47/724 [00:13<01:50,  6.10it/s]Loading weights:   8%|▊         | 60/724 [00:13<00:38, 17.36it/s]Loading weights:   9%|▉         | 68/724 [00:13<00:27, 24.09it/s]Loading weights:  11%|█         | 81/724 [00:13<00:17, 37.45it/s]Loading weights:  13%|█▎        | 94/724 [00:13<00:12, 50.98it/s]Loading weights:  14%|█▍        | 103/724 [00:13<00:11, 53.12it/s]Loading weights:  16%|█▋        | 118/724 [00:13<00:08, 71.59it/s]Loading weights:  18%|█▊        | 129/724 [00:13<00:07, 76.72it/s]Loading weights:  19%|█▉        | 139/724 [00:14<00:07, 78.90it/s]Loading weights:  21%|██        | 149/724 [00:14<00:07, 75.66it/s]Loading weights:  22%|██▏       | 158/724 [00:14<00:07, 77.70it/s]Loading weights:  24%|██▍       | 172/724 [00:14<00:06, 87.68it/s]Loading weights:  25%|██▌       | 183/724 [00:14<00:05, 92.80it/s]Loading weights:  27%|██▋       | 193/724 [00:14<00:05, 93.27it/s]Loading weights:  28%|██▊       | 203/724 [00:14<00:06, 84.75it/s]Loading weights:  29%|██▉       | 212/724 [00:14<00:06, 78.97it/s]Loading weights:  31%|███       | 225/724 [00:15<00:05, 87.53it/s]Loading weights:  33%|███▎      | 239/724 [00:15<00:05, 96.67it/s]Loading weights:  63%|██████▎   | 453/724 [00:15<00:00, 624.92it/s]Loading weights:  73%|███████▎  | 525/724 [00:15<00:00, 643.43it/s]Loading weights:  78%|███████▊  | 564/724 [00:15<00:04, 36.63it/s] 
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/home/administrator/Desktop/ohm/.venv/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 411, in from_pretrained
+    return model_class.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/administrator/Desktop/ohm/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 4338, in from_pretrained
+    loading_info, disk_offload_index = cls._load_pretrained_model(model, state_dict, checkpoint_files, load_config)
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/administrator/Desktop/ohm/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 4481, in _load_pretrained_model
+    loading_info, disk_offload_index = convert_and_load_state_dict_in_model(
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/administrator/Desktop/ohm/.venv/lib/python3.12/site-packages/transformers/core_model_loading.py", line 1754, in convert_and_load_state_dict_in_model
+    realized_value = mapping.convert(
+                     ^^^^^^^^^^^^^^^^
+  File "/home/administrator/Desktop/ohm/.venv/lib/python3.12/site-packages/transformers/core_model_loading.py", line 1008, in convert
+    collected_tensors = self.materialize_tensors()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/administrator/Desktop/ohm/.venv/lib/python3.12/site-packages/transformers/core_model_loading.py", line 970, in materialize_tensors
+    tensors = [future.result() for future in tensors if future.result() is not None]
+                                                        ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/administrator/Desktop/ohm/.venv/lib/python3.12/site-packages/transformers/core_model_loading.py", line 1262, in _job
+    return _materialize_copy(tensor, device, dtype)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/administrator/Desktop/ohm/.venv/lib/python3.12/site-packages/transformers/core_model_loading.py", line 1240, in _materialize_copy
+    tensor = tensor.to(device=device, dtype=dtype)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 20.00 MiB. GPU 0 has a total capacity of 11.89 GiB of which 46.25 MiB is free. Process 3171 has 151.31 MiB memory in use. Process 22614 has 4.24 GiB memory in use. Process 22650 has 492.00 MiB memory in use. Including non-PyTorch memory, this process has 6.55 GiB memory in use. Of the allocated memory 6.39 GiB is allocated by PyTorch, and 16.25 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)

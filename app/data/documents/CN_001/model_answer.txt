@@ -1,0 +1,102 @@
+COMPUTER NETWORKS
+Assignment – Model Answer Sheet
+Maximum Marks: 50
+Q1. [6 Marks]
+Given
+• LAN bandwidth = 10 Mbps
+• Measured traffic = 12,000 frames/min, each frame = 10,000 bits
+(a) Total bits per minute [2]
+12,000 × 10,000 = 120,000,000 bits
+(b) Throughput [2]
+120,000,000 / 60 = 2,000,000 bps = 2 Mbps
+(c) Why it is lower than 10 Mbps [2]
+• Protocol overhead, collisions and retransmissions
+• Limits in application or host processing
+• Congestion or queuing delays
+• Errors and retransmission reduce the effective throughput
+Q2. [7 Marks]
+(a) Byte pairs and fields [2]
+CB 84 | 00 0D | 00 1C | 00 1C
+The four fields are: Source Port, Destination Port, Length and Checksum.
+(b) Field values [3]
+• Source port = 0xCB84 = 52100 (decimal)
+• Destination port = 0x000D = 13
+• Length (total UDP length) = 0x001C = 28 bytes
+• Checksum = 0x001C (28 in decimal)
+(c) Size of UDP data [1]
+UDP header = 8 bytes, so data size = 28 − 8 = 20 bytes.
+(d) Byte order and Length field [1]
+• Ports are 16-bit fields stored in network byte order (big-endian).
+• Length is the length of the entire UDP datagram (header + data).
+Q3. [5 Marks]
+(a) Mask and network address [1]
+For /24 the subnet mask is 255.255.255.0 and the network address is 17.63.110.0.
+(b) Usable and broadcast addresses [3]
+• First usable address: 17.63.110.1
+• Last usable address: 17.63.110.254
+• Broadcast address: 17.63.110.255
+(c) Host range [1]
+Host range is .1 through .254; .0 is the network address and .255 is the broadcast address.
+Q4. [6 Marks]
+TCP/IP layers (top to bottom)
+Application Layer ↓ Transport Layer ↓ Network Layer ↓ Data Link
+Layer
+Application Layer
+• Process-to-process communication
+• Application-specific semantics (e.g., SMTP mail delivery rules)
+Transport Layer
+• Reliable byte-stream delivery (TCP), ensuring in-order delivery
+• Multiplexing/demultiplexing using ports, allowing many applications to share the
+network
+Network Layer
+• Routing: finding a path between source and destination across the network
+• Logical addressing (IP addressing) and fragmentation
+Data Link Layer
+• Frame transmission and media access
+• Error detection at frame level
+Q5. [6 Marks]
+(a) Stop-and-Wait and its inefficiency [2]
+• The sender transmits one frame and then waits for the ACK.
+• If the Round-Trip Time (RTT) is large compared with the frame transmission time, the
+channel stays idle for most of the time.
+(b) Link utilization [1]
+U = Frame transmission time / (Frame transmission time + RTT)
+(c) Selective Repeat ARQ [3]
+• The sender can transmit multiple frames at once (sliding window).
+• Only the erroneous frames are retransmitted, not the whole sequence.
+• This increases throughput and utilization, especially on long-delay links.
+Q6. [4 Marks]
+• CRC computes the remainder of the polynomial division of the data by a generator
+polynomial.
+• The remainder is appended to the data as the checksum.
+• The receiver divides the received bits by the same generator; a non-zero remainder means
+an error is detected.
+• Practical result: it detects burst errors and many random errors with high probability.
+Q7. [5 Marks]
+(a) Address size [1]
+IPv4 uses 32-bit addresses; IPv6 uses 128-bit addresses.
+(b) Header and options [2]
+IPv6 has a simplified header and uses extension headers for options, which gives faster routing.
+(c) Built-in features [2]
+IPv6 supports autoconfiguration and eliminates the need for NAT; this affects addressing and
+routing.
+Q8. [5 Marks]
+(a) DHCP server and pool [1]
+• The DHCP server manages a pool of IP addresses.
+• When a client requests one, the server leases an unused address.
+(b) DORA [2]
+Discover → Offer → Request → Acknowledge
+(c) ARP probe [1]
+Before assignment, DHCP may send an ARP probe to confirm the address is not already in use.
+(d) Lease expiration [1]
+Lease expiration is used to reclaim addresses.
+Q9. [6 Marks]
+(a) TCP vs UDP [3]
+• TCP (connection-oriented): reliable and ordered, but higher latency (retransmissions,
+head-of-line blocking).
+• UDP (connectionless): faster with minimal overhead, but no reliability.
+(b) Recommendations [3]
+• Real-time streaming / gaming / VoIP → UDP, because speed matters more than perfect
+reliability.
+• On-demand video (Netflix, YouTube) → TCP/HTTP.
+— End of Answer Sheet —

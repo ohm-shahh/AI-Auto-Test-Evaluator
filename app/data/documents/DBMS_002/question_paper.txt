@@ -1,0 +1,12 @@
+Database Management Systems — Question Paper
+Synthetic teacher paper. Subject: Database Management Systems. Total maximum marks: 22.
+Q1 — 5 marks
+Explain what a database is and state two benefits of using a database.
+Q2(a) — 3 marks
+Define a primary key in a relational database.
+Q3 — 4 marks
+What is a foreign key? State its purpose.
+Q4 — 5 marks
+Explain database normalization and give one reason it is useful.
+Q5 — 5 marks
+Differentiate between a primary key and a foreign key.

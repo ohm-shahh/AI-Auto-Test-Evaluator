@@ -1,0 +1,31 @@
+Teacher Model Answers and Marking Rubric
+Teacher reference material. Use the exact question IDs and maximum marks.
+Q1 — Maximum 5 marks
+Question: Explain what a database is and state two benefits of using a database.
+Model answer: A database is an organized collection of related data. Benefits include easier retrieval,
+reduced duplication, improved consistency, controlled access, and reliable sharing.
+Marking rubric: Definition of organized related data: 2; One valid benefit: 1; Second distinct valid benefit: 1;
+Relevance and clarity: 1
+Q2(a) — Maximum 3 marks
+Question: Define a primary key in a relational database.
+Model answer: A primary key is a column or set of columns that uniquely identifies each row in a table. Its
+values must be unique and cannot be NULL.
+Marking rubric: Uniquely identifies a row: 2; Mentions uniqueness and/or non-NULL: 1
+Q3 — Maximum 4 marks
+Question: What is a foreign key? State its purpose.
+Model answer: A foreign key is a column or set of columns that refers to a key in another or the same
+table. It establishes relationships and helps maintain referential integrity.
+Marking rubric: References a key in another/same table: 2; Explains table relationships: 1; Mentions
+referential integrity: 1
+Q4 — Maximum 5 marks
+Question: Explain database normalization and give one reason it is useful.
+Model answer: Normalization organizes data into related tables to reduce duplication and improve
+integrity. It can reduce insertion, update, and deletion anomalies.
+Marking rubric: Organizes/decomposes data into related tables: 2; Explains reducing redundancy: 1; Valid
+benefit such as integrity/fewer anomalies: 2
+Q5 — Maximum 5 marks
+Question: Differentiate between a primary key and a foreign key.
+Model answer: A primary key uniquely identifies a row in its own table. A foreign key references a key in
+another or the same table to create relationships and maintain referential integrity.
+Marking rubric: Correct primary-key explanation: 2; Correct foreign-key explanation: 2; Meaningful
+difference/purpose: 1

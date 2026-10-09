@@ -1,5 +1,31 @@
+<<<<<<< HEAD
 .venv/
 venv/
 __pycache__/
 *.pyc
 .env
+=======
+# Virtual Environments
+.venv/
+.venv
+venv/
+env/
+.env
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Vector database & ephemeral storage
+app/data/chroma/
+
+# System and IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+>>>>>>> origin/master

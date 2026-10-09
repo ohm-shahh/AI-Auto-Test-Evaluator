@@ -1,0 +1,60 @@
+COMPUTER NETWORKS
+Assignment Question Paper
+Maximum Marks: 50 Duration: 2 Hours
+General Instructions
+1. Attempt all questions.
+2. Marks are indicated against each question.
+3. Show all working for numerical problems.
+Q1. [6 Marks]
+A LAN has a rated bandwidth of 10 Mbps. During a measurement interval, the network was
+observed to carry 12,000 frames per minute, where each frame is 10,000 bits long.
+(a) Calculate the total number of bits transmitted per minute. [2]
+(b) Compute the effective throughput of the LAN in bps and in Mbps. [2]
+(c) Explain why the measured throughput is lower than the rated bandwidth of 10 Mbps. [2]
+Q2. [7 Marks]
+The following UDP header was captured in hexadecimal:
+CB84 000D 001C 001C
+(a) Separate the header into its hexadecimal byte pairs and identify the four UDP header
+fields. [2]
+(b) Determine the source port, destination port, UDP length and checksum values (give
+decimal values where applicable). [3]
+(c) Given that the UDP header is 8 bytes long, calculate the size of the UDP data. [1]
+(d) State the byte order used for port fields and explain what the Length field represents. [1]
+Q3. [5 Marks]
+An organisation is allocated the IP block 17.63.110.114/24.
+(a) Write the subnet mask and the network address of the block. [1]
+(b) Determine the first usable address, the last usable address and the broadcast address. [3]
+(c) State the valid host range and explain the role of the first and last addresses of the block.
+[1]
+Q4. [6 Marks]
+Draw the layered structure of the TCP/IP model (top to bottom) and briefly explain the function
+of each layer: Application Layer, Transport Layer, Network Layer and Data Link Layer.
+Q5. [6 Marks]
+(a) Describe the Stop-and-Wait protocol and explain why it is inefficient when the round-trip
+time (RTT) is large compared with the frame transmission time. [2]
+(b) Write the formula for link utilization (U) in Stop-and-Wait. [1]
+(c) Explain how Selective Repeat ARQ overcomes these inefficiencies. [3]
+Q6. [4 Marks]
+Explain the working of the Cyclic Redundancy Check (CRC) error-detection technique. Describe
+how the sender computes the check value, how the receiver detects an error, and state the
+practical result of using CRC.
+Q7. [5 Marks]
+Compare IPv4 and IPv6 on the following bases:
+(a) Address size [1]
+(b) Header and options [2]
+(c) Built-in features [2]
+Q8. [5 Marks]
+Explain how the Dynamic Host Configuration Protocol (DHCP) works. Your answer should
+cover:
+(a) The role of the DHCP server and its address pool [1]
+(b) The DORA process [2]
+(c) The use of an ARP probe before address assignment [1]
+(d) The role of lease expiration [1]
+Q9. [6 Marks]
+(a) Compare TCP and UDP in terms of connection type, reliability, ordering, latency and
+overhead. [3]
+(b) For each of the following applications, recommend a suitable transport protocol and
+justify your choice: [3]
+(i) Real-time streaming, online gaming and VoIP
+(ii) On-demand video (e.g., Netflix, YouTube)
+— End of Question Paper —
