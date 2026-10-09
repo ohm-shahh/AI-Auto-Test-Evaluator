@@ -108,6 +108,31 @@ class ChromaKnowledgeStore:
         """Retrieves stored chunks and metadata for a specific test_id."""
         return self.collection.get(where={"test_id": test_id})
 
+    def query_test_knowledge(self, test_id: str, query_embedding: List[float], top_k: int = 2) -> List[Dict[str, Any]]:
+        """Queries the vector store for semantic matches strictly within a specific test_id."""
+        try:
+            results = self.collection.query(
+                query_embeddings=[query_embedding],
+                n_results=top_k,
+                where={"test_id": test_id}
+            )
+            
+            docs = results.get("documents", [[]])[0]
+            metas = results.get("metadatas", [[]])[0]
+            dists = results.get("distances", [[]])[0]
+            
+            matches = []
+            for d, m, dist in zip(docs, metas, dists):
+                matches.append({
+                    "document": d,
+                    "metadata": m,
+                    "distance": dist
+                })
+            return matches
+        except Exception as e:
+            logger.error(f"[CHROMA] Query failed for test_id='{test_id}': {e}")
+            return []
+
     def inspect_collection(self) -> Dict[str, Any]:
         """Debug helper to inspect the knowledge base contents without exposing evaluation/search APIs."""
         count = self.collection.count()

@@ -22,8 +22,9 @@ from pydantic import BaseModel
 from app.services.preprocess import preprocess_pipeline
 from app.services.ocr import ocr_service
 from app.services.evaluator import evaluator_service
-from app.services.surya_ocr import surya_service
 from app.services.chandra_ocr import chandra_service
+from app.services.qwen_ocr import qwen_ocr_service
+from app.services.student_segmenter import student_segmenter_service
 from app.services.teacher_ingestion import teacher_ingestion_service
 from app.services.knowledge_store import knowledge_store
 
@@ -270,21 +271,40 @@ async def read_root(request: Request):
 # --- Test Management Endpoints ---
 
 @app.get("/api/tests")
-async def get_all_tests():
-    """List all teacher posted tests with submission counts."""
+async def get_all_tests(active_only: bool = False):
+    """List all teacher posted tests with submission counts and average scores."""
     tests_summary = []
-    for t in db["tests"]:
-        sub_count = len([s for s in db["submissions"] if s.get("test_id") == t["id"]])
+    for t in db.get("tests", []):
+        is_published = t.get("is_published", True)
+        status = t.get("status", "active")
+
+        if active_only and (not is_published or status != "active"):
+            continue
+
+        subs = [s for s in db.get("submissions", []) if s.get("test_id") == t.get("id")]
+        sub_count = len(subs)
         avg_score = 0
-        subs = [s for s in db["submissions"] if s.get("test_id") == t["id"]]
-        if subs:
-            avg_score = round(sum(s.get("evaluation", {}).get("marks_obtained", 0) for s in subs) / len(subs), 1)
+        evaluated_subs = [
+            s for s in subs
+            if s.get("evaluation") and isinstance(s.get("evaluation"), dict) and "marks_obtained" in s["evaluation"]
+        ]
+        if evaluated_subs:
+            total_marks = sum(s["evaluation"].get("marks_obtained", 0) for s in evaluated_subs)
+            avg_score = round(total_marks / len(evaluated_subs), 1)
+
         tests_summary.append({
             **t,
+            "status": status,
+            "is_published": is_published,
             "submissions_count": sub_count,
             "average_score": avg_score
         })
-    return {"success": True, "tests": tests_summary}
+    return {"success": True, "tests": tests_summary, "total": len(tests_summary)}
+
+@app.get("/api/tests/active")
+async def get_active_tests():
+    """List active, published tests for the student portal."""
+    return await get_all_tests(active_only=True)
 
 class CreateTestSchema(BaseModel):
     id: str
@@ -295,6 +315,8 @@ class CreateTestSchema(BaseModel):
     question: str
     model_answer: str
     rubric: Optional[str] = ""
+    status: Optional[str] = "active"
+    is_published: Optional[bool] = True
 
 @app.post("/api/tests")
 async def create_new_test(payload: CreateTestSchema):
@@ -304,7 +326,7 @@ async def create_new_test(payload: CreateTestSchema):
         clean_id = f"test_{uuid.uuid4().hex[:6]}"
         
     # Check if ID already exists
-    if any(t["id"] == clean_id for t in db["tests"]):
+    if any(t["id"] == clean_id for t in db.get("tests", [])):
         raise HTTPException(status_code=400, detail=f"Test ID '{clean_id}' already exists. Please choose another ID.")
         
     new_test = {
@@ -317,6 +339,8 @@ async def create_new_test(payload: CreateTestSchema):
         "question": payload.question,
         "model_answer": payload.model_answer,
         "rubric": payload.rubric,
+        "status": payload.status or "active",
+        "is_published": True if payload.is_published is not False else False,
         "questions": [],
         "source_documents": [],
         "knowledge_status": "processing",
@@ -426,10 +450,51 @@ async def inspect_chroma_knowledge_base():
 @app.get("/api/tests/{test_id}")
 async def get_test_details(test_id: str):
     """Get single test information."""
-    test = next((t for t in db["tests"] if t["id"] == test_id), None)
+    test = next((t for t in db.get("tests", []) if t["id"] == test_id), None)
     if not test:
         raise HTTPException(status_code=404, detail="Test not found.")
-    return {"success": True, "test": test}
+    normalized_test = {
+        **test,
+        "status": test.get("status", "active"),
+        "is_published": test.get("is_published", True)
+    }
+    return {"success": True, "test": normalized_test}
+
+@app.delete("/api/tests/{test_id}")
+async def delete_test(test_id: str):
+    """Delete a test, its submissions, files, and knowledge base."""
+    global db
+    import shutil
+    
+    test_exists = False
+    new_tests = []
+    for test in db.get("tests", []):
+        if test["id"] == test_id:
+            test_exists = True
+        else:
+            new_tests.append(test)
+            
+    if not test_exists:
+        raise HTTPException(status_code=404, detail="Test not found.")
+        
+    db["tests"] = new_tests
+    db["submissions"] = [sub for sub in db.get("submissions", []) if sub.get("test_id") != test_id]
+    save_db(db)
+    
+    test_docs_dir = os.path.join(data_dir, "documents", test_id)
+    if os.path.exists(test_docs_dir):
+        try:
+            shutil.rmtree(test_docs_dir)
+        except Exception as e:
+            logger.error(f"Failed to delete test documents dir {test_docs_dir}: {e}")
+            
+    try:
+        from app.services.knowledge_store import knowledge_store
+        knowledge_store.delete_test_chunks(test_id)
+    except Exception as e:
+        logger.error(f"Failed to delete test chunks from knowledge store: {e}")
+        
+    return {"success": True, "message": "Test deleted successfully"}
 
 # --- Student Submission & Evaluation Endpoints ---
 
@@ -454,10 +519,10 @@ async def submit_student_solution(
         raise HTTPException(status_code=404, detail="Test not found.")
 
     canonical_engine = (ocr_engine or "standard").strip().lower()
-    if canonical_engine not in ("standard", "surya", "chandra"):
+    if canonical_engine not in ("standard", "chandra", "qwen2.5vl"):
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid OCR engine '{canonical_engine}'. Supported engines: standard, surya, chandra."
+            detail=f"Invalid OCR engine '{canonical_engine}'. Supported engines: standard, chandra, qwen2.5vl."
         )
 
     try:
@@ -474,7 +539,7 @@ async def submit_student_solution(
     if canonical_engine == "chandra":
         logger.info("[OCR] Routing student submission to Chandra OCR")
         logger.info("[OCR] Standard/Gemma OCR: NOT USED")
-        logger.info("[OCR] Surya OCR: NOT USED")
+        logger.info("[OCR] Qwen2.5-VL OCR: NOT USED")
         res = await anyio.to_thread.run_sync(chandra_service.run_chandra_ocr, content, file.filename)
         if not res.get("success", False):
             error_detail = res.get("error", "Chandra OCR extraction failed.")
@@ -484,15 +549,15 @@ async def submit_student_solution(
         extraction_metadata = res.get("metadata", {})
         preprocessed_data_url = res.get("preprocessed_image")
 
-    elif canonical_engine == "surya":
-        logger.info("[OCR] Routing student submission to Surya OCR")
+    elif canonical_engine == "qwen2.5vl":
+        logger.info("[OCR] Routing student submission to Qwen2.5-VL OCR (qwen2.5vl:3b)")
         logger.info("[OCR] Standard/Gemma OCR: NOT USED")
         logger.info("[OCR] Chandra OCR: NOT USED")
-        res = await anyio.to_thread.run_sync(surya_service.run_surya_ocr, content, file.filename)
+        res = await anyio.to_thread.run_sync(qwen_ocr_service.run_qwen_ocr, content, file.filename)
         if not res.get("success", False):
-            error_detail = res.get("error", "Surya OCR extraction failed.")
-            logger.error(f"[OCR] Surya OCR failed on student submission: {error_detail}")
-            raise HTTPException(status_code=400, detail=f"Surya OCR extraction failed: {error_detail}")
+            error_detail = res.get("error", "Qwen2.5-VL OCR extraction failed.")
+            logger.error(f"[OCR] Qwen2.5-VL OCR failed on student submission: {error_detail}")
+            raise HTTPException(status_code=400, detail=f"Qwen2.5-VL OCR extraction failed: {error_detail}")
         extracted_text = res["text"]
         extraction_metadata = res.get("metadata", {})
         preprocessed_data_url = res.get("preprocessed_image")
@@ -501,7 +566,7 @@ async def submit_student_solution(
         logger.info("[OCR] Routing student submission to Standard OCR")
         logger.info("[OCR] Standard OCR using Gemma/Ollama pipeline")
         logger.info("[OCR] Chandra OCR: NOT USED")
-        logger.info("[OCR] Surya OCR: NOT USED")
+        logger.info("[OCR] Qwen2.5-VL OCR: NOT USED")
         try:
             extraction = process_document_extraction(
                 content=content,
@@ -521,22 +586,24 @@ async def submit_student_solution(
     extraction_metadata["ocr_engine"] = canonical_engine
     student_text = extracted_text
 
-    # 2. Semantic Evaluation via Evaluator LLM (Grading separated from OCR)
-    try:
-        eval_result = evaluator_service.evaluate_submission(
-            student_answer=student_text,
-            question=test["question"],
-            model_answer=test["model_answer"] + "\n\nRubric: " + (test.get("rubric") or ""),
-            max_marks=test["max_marks"]
-        )
-    except Exception as e:
-        logger.error(f"Evaluation error: {e}")
-        eval_result = evaluator_service._heuristic_fallback_evaluation(
-            student_text, test["question"], test["model_answer"], test["max_marks"]
-        )
+    # 2. Semantic Evaluation via Evaluator LLM (Moved to explicit evaluation endpoint for Phase 4)
+    eval_result = None
 
-    # 3. Store submission record
     submission_id = f"sub_{uuid.uuid4().hex[:8]}"
+    
+    # 3. Segment and Map Student Answers (Phase 3)
+    teacher_questions = test.get("questions", [])
+    try:
+        segmented_answers = student_segmenter_service.segment_answers(student_text, teacher_questions)
+        for seg in segmented_answers:
+            seg["submission_id"] = submission_id
+            seg["test_id"] = test_id
+            seg["ocr_engine"] = canonical_engine
+    except Exception as e:
+        logger.error(f"Segmentation error: {e}")
+        segmented_answers = []
+
+    # 4. Store submission record
     original_data_url = None
     if not file.filename.lower().endswith('.pdf'):
         try:
@@ -561,7 +628,8 @@ async def submit_student_solution(
         "teacher_remarks": None,
         "metadata": extraction_metadata,
         "preprocessed_image": preprocessed_data_url,
-        "original_image": original_data_url
+        "original_image": original_data_url,
+        "segmented_answers": segmented_answers
     }
 
     db["submissions"].insert(0, record)
@@ -574,7 +642,8 @@ async def submit_student_solution(
         "extracted_text": student_text,
         "evaluation": eval_result,
         "metadata": extraction_metadata,
-        "preprocessed_image": preprocessed_data_url
+        "preprocessed_image": preprocessed_data_url,
+        "segmented_answers": segmented_answers
     }
 
 @app.get("/api/tests/{test_id}/submissions")
@@ -598,6 +667,143 @@ async def teacher_override_submission(submission_id: str, payload: OverrideSchem
     sub["teacher_remarks"] = payload.remarks
     save_db(db)
     return {"success": True, "submission": sub}
+
+@app.post("/api/submissions/{submission_id}/evaluate")
+async def evaluate_student_submission(submission_id: str):
+    """
+    Phase 4: Automatically evaluates a student submission on a per-question basis.
+    """
+    sub = next((s for s in db["submissions"] if s["id"] == submission_id), None)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found.")
+        
+    test = next((t for t in db["tests"] if t["id"] == sub["test_id"]), None)
+    if not test:
+        raise HTTPException(status_code=404, detail="Test for submission not found.")
+
+    teacher_questions = {q["id"]: q for q in test.get("questions", [])}
+    
+    total_awarded = 0.0
+    total_max = 0.0
+    review_count = 0
+    evaluated_count = 0
+
+    segmented = sub.get("segmented_answers", [])
+    if not segmented:
+        return {"success": False, "detail": "No segmented answers to evaluate."}
+        
+    for seg in segmented:
+        status = seg.get("mapping_status")
+        if status in ("review_required", "unmapped"):
+            seg["evaluation_result"] = {
+                "needs_teacher_review": True,
+                "reasoning": "Mapping uncertain; teacher review required.",
+                "marks_awarded": 0.0,
+                "max_marks": 0.0
+            }
+            review_count += 1
+            continue
+            
+        tq_id = seg.get("teacher_question_id")
+        tq = teacher_questions.get(tq_id)
+        if not tq:
+            seg["evaluation_result"] = {
+                "needs_teacher_review": True,
+                "reasoning": "Teacher question missing from structured store.",
+                "marks_awarded": 0.0,
+                "max_marks": 0.0
+            }
+            review_count += 1
+            continue
+            
+        raw_max = tq.get("max_marks")
+        try:
+            max_marks = float(raw_max) if raw_max is not None else 0.0
+        except (ValueError, TypeError):
+            max_marks = 0.0
+
+        if max_marks <= 0.0 or tq.get("is_parent"):
+            seg["evaluation_result"] = {
+                "needs_teacher_review": True,
+                "reasoning": "Parent or unweighted question; teacher review required.",
+                "marks_awarded": 0.0,
+                "max_marks": 0.0
+            }
+            review_count += 1
+            continue
+        student_ans = seg.get("extracted_answer", "").strip()
+        
+        if not student_ans:
+            seg["evaluation_result"] = {
+                "marks_awarded": 0.0,
+                "max_marks": max_marks,
+                "reasoning": "Student left the answer blank.",
+                "missing_concepts": ["All concepts missing."],
+                "feedback": "Please attempt this question next time.",
+                "needs_teacher_review": False,
+                "evaluation_status": "completed"
+            }
+            total_max += max_marks
+            evaluated_count += 1
+            continue
+            
+        # Optional Context Retrieval
+        retrieved_context = ""
+        try:
+            from app.services.embedding import embedding_service
+            q_emb = embedding_service.get_embedding(student_ans)
+            if q_emb:
+                matches = knowledge_store.query_test_knowledge(test["id"], q_emb, top_k=2)
+                if matches:
+                    retrieved_context = "\\n".join([m["document"] for m in matches if m["distance"] < 0.8])
+        except Exception as e:
+            logger.warning(f"Retrieval failed during evaluation: {e}")
+
+        # Call Evaluator
+        try:
+            eval_res = evaluator_service.evaluate_segmented_answer(
+                student_answer=student_ans,
+                question=tq.get("question_text", ""),
+                model_answer=tq.get("model_answer", ""),
+                max_marks=max_marks,
+                rubric=tq.get("rubric", ""),
+                retrieved_context=retrieved_context
+            )
+            seg["evaluation_result"] = eval_res
+            
+            if eval_res.get("needs_teacher_review"):
+                review_count += 1
+            else:
+                total_awarded += eval_res.get("marks_awarded", 0.0)
+                total_max += max_marks
+                evaluated_count += 1
+                
+        except Exception as e:
+            logger.error(f"Failed to evaluate segment: {e}")
+            seg["evaluation_result"] = {
+                "needs_teacher_review": True,
+                "reasoning": f"Evaluator error: {str(e)}",
+                "marks_awarded": 0.0,
+                "max_marks": max_marks
+            }
+            review_count += 1
+            
+    # Update submission object
+    sub["evaluation"] = {
+        "marks_obtained": total_awarded,
+        "max_marks": total_max,
+        "evaluated_count": evaluated_count,
+        "review_count": review_count,
+        "status": "evaluated"
+    }
+    save_db(db)
+    
+    return {
+        "success": True,
+        "submission_id": submission_id,
+        "evaluation": sub["evaluation"],
+        "segmented_answers": segmented
+    }
 
 # --- Diagnostic & Quick Test Endpoints ---
 
@@ -627,18 +833,19 @@ async def get_sample_file(sample_name: str):
 @app.get("/api/ocr/status")
 async def get_ocr_engine_status():
     """Returns availability and status of OCR engines."""
-    surya_ready, surya_msg = surya_service.is_available()
     chandra_ready, chandra_msg = chandra_service.is_available()
+    qwen_ready, qwen_msg = qwen_ocr_service.is_available()
     return {
         "success": True,
         "standard_ocr": "Online (Gemma 3 Vision / PaddleOCR)",
-        "surya_ocr": {
-            "available": surya_ready,
-            "status": surya_msg
-        },
         "chandra_ocr": {
             "available": chandra_ready,
             "status": chandra_msg
+        },
+        "qwen2.5vl_ocr": {
+            "available": qwen_ready,
+            "status": qwen_msg,
+            "model": qwen_ocr_service.MODEL_NAME
         }
     }
 
@@ -651,16 +858,16 @@ async def extract_handwritten_document(
     apply_threshold: bool = Form(True),
     apply_deskew: bool = Form(True)
 ):
-    """Standalone OCR diagnostic endpoint supporting Standard, Surya, and Chandra OCR."""
+    """Standalone OCR diagnostic endpoint supporting Standard, Chandra, and Qwen2.5-VL OCR."""
     selected_engine = (ocr_engine or "standard").strip().lower()
-    if selected_engine not in ("standard", "surya", "chandra"):
+    if selected_engine not in ("standard", "chandra", "qwen2.5vl"):
         return JSONResponse(
             status_code=400,
             content={
                 "success": False,
                 "filename": file.filename,
                 "ocr_engine": selected_engine,
-                "error": f"Invalid OCR engine '{selected_engine}'. Supported engines: standard, surya, chandra.",
+                "error": f"Invalid OCR engine '{selected_engine}'. Supported engines: standard, chandra, qwen2.5vl.",
                 "detail": f"Engine '{selected_engine}' is not supported.",
                 "text": "",
                 "lines": [],
@@ -675,7 +882,7 @@ async def extract_handwritten_document(
         if selected_engine == "chandra":
             logger.info("[OCR] Routing to Chandra OCR")
             logger.info("[OCR] Standard/Gemma OCR: NOT USED")
-            logger.info("[OCR] Surya OCR: NOT USED")
+            logger.info("[OCR] Qwen2.5-VL OCR: NOT USED")
             res = await anyio.to_thread.run_sync(chandra_service.run_chandra_ocr, content, file.filename)
             if not res.get("success", False):
                 return JSONResponse(
@@ -703,19 +910,19 @@ async def extract_handwritten_document(
                 "ocr_engine": "chandra"
             }
 
-        elif selected_engine == "surya":
-            logger.info("[OCR] Routing to Surya OCR")
+        elif selected_engine == "qwen2.5vl":
+            logger.info("[OCR] Routing to Qwen2.5-VL OCR")
             logger.info("[OCR] Standard/Gemma OCR: NOT USED")
             logger.info("[OCR] Chandra OCR: NOT USED")
-            res = await anyio.to_thread.run_sync(surya_service.run_surya_ocr, content, file.filename)
+            res = await anyio.to_thread.run_sync(qwen_ocr_service.run_qwen_ocr, content, file.filename)
             if not res.get("success", False):
                 return JSONResponse(
                     status_code=400,
                     content={
                         "success": False,
                         "filename": file.filename,
-                        "ocr_engine": "surya",
-                        "error": res.get("error", "Surya OCR processing failed."),
+                        "ocr_engine": "qwen2.5vl",
+                        "error": res.get("error", "Qwen2.5-VL OCR processing failed."),
                         "detail": res.get("detail", res.get("error")),
                         "text": "",
                         "lines": [],
@@ -723,22 +930,22 @@ async def extract_handwritten_document(
                         "preprocessed_image": res.get("preprocessed_image")
                     }
                 )
-            logger.info(f"[OCR] Completed using surya ({len(res.get('text', ''))} characters)")
+            logger.info(f"[OCR] Completed using qwen2.5vl ({len(res.get('text', ''))} characters)")
             return {
                 "success": True,
                 "filename": file.filename,
                 "text": res["text"],
-                "lines": res["lines"],
-                "metadata": res["metadata"],
-                "preprocessed_image": res["preprocessed_image"],
-                "ocr_engine": "surya"
+                "lines": res.get("lines", []),
+                "metadata": res.get("metadata", {}),
+                "preprocessed_image": res.get("preprocessed_image"),
+                "ocr_engine": "qwen2.5vl"
             }
 
         else: # standard
             logger.info("[OCR] Routing to Standard OCR")
             logger.info("[OCR] Standard OCR using Gemma/Ollama and OpenCV pipeline")
             logger.info("[OCR] Chandra OCR: NOT USED")
-            logger.info("[OCR] Surya OCR: NOT USED")
+            logger.info("[OCR] Qwen2.5-VL OCR: NOT USED")
             res = process_document_extraction(
                 content=content,
                 filename=file.filename,

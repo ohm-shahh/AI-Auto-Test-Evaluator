@@ -3,7 +3,7 @@
 ───────────────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', () => {
-    const CANONICAL_ENGINES = ['standard', 'surya', 'chandra'];
+    const CANONICAL_ENGINES = ['standard', 'chandra', 'qwen2.5vl'];
 
     function getStoredOcrEngine() {
         try {
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const labStatConf = document.getElementById('lab-stat-conf');
     const labStatSkew = document.getElementById('lab-stat-skew');
     const labStatEngine = document.getElementById('lab-stat-engine');
-    const suryaStatusBadge = document.getElementById('surya-status-badge');
+
     const labOrigImg = document.getElementById('lab-orig-img');
     const labProcImg = document.getElementById('lab-proc-img');
     const labTextOutput = document.getElementById('lab-text-output');
@@ -157,45 +157,70 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────
     // API HELPERS: LOAD TESTS & SUBMISSIONS
     // ─────────────────────────────────────────────────────────────
+    function isTestActive(test) {
+        if (!test) return false;
+        if (test.is_published === false) return false;
+        if (test.status && test.status !== 'active' && test.status !== 'published') return false;
+        return true;
+    }
+
     async function loadTests() {
+        if (studentTestList && (!state.tests || state.tests.length === 0)) {
+            studentTestList.innerHTML = '<div class="table-empty">Loading active tests...</div>';
+        }
         try {
             const res = await fetch('/api/tests');
+            if (!res.ok) {
+                throw new Error(`Server returned HTTP ${res.status}`);
+            }
             const data = await res.json();
-            if (data.success) {
+            if (data.success && Array.isArray(data.tests)) {
                 state.tests = data.tests;
                 renderStudentTests();
                 renderTeacherTests();
+            } else {
+                throw new Error(data.detail || 'Invalid response from server');
             }
         } catch (e) {
             console.error('Failed to load tests:', e);
+            if (studentTestList) {
+                studentTestList.innerHTML = '<div class="table-empty" style="color: #dc2626;">Failed to load active tests. Please try refreshing.</div>';
+            }
+            if (activeTestCount) {
+                activeTestCount.innerText = '0';
+            }
         }
     }
 
     function renderStudentTests() {
         if (!studentTestList) return;
         studentTestList.innerHTML = '';
-        activeTestCount.innerText = state.tests.length;
 
-        if (state.tests.length === 0) {
+        const activeTests = (state.tests || []).filter(isTestActive);
+        if (activeTestCount) {
+            activeTestCount.innerText = activeTests.length;
+        }
+
+        if (activeTests.length === 0) {
             studentTestList.innerHTML = '<div class="table-empty">No active tests posted yet.</div>';
             return;
         }
 
-        state.tests.forEach(test => {
+        activeTests.forEach(test => {
             const card = document.createElement('div');
             card.className = 'test-card';
             card.innerHTML = `
                 <div>
-                    <span class="test-card-subject">${escapeHtml(test.subject)}</span>
-                    <h3 class="test-card-title">${escapeHtml(test.title)}</h3>
+                    <span class="test-card-subject">${escapeHtml(test.subject || 'General')}</span>
+                    <h3 class="test-card-title">${escapeHtml(test.title || 'Untitled Test')}</h3>
                     <div class="test-card-meta">
-                        <span>📅 Due: ${test.due_date}</span>
-                        <span>📝 ${test.id}</span>
+                        <span>📅 Due: ${escapeHtml(test.due_date || 'No due date')}</span>
+                        <span>📝 ${escapeHtml(test.id)}</span>
                     </div>
                 </div>
                 <div class="test-card-footer">
-                    <span class="marks-tag">Max: ${test.max_marks} Marks</span>
-                    <button type="button" class="btn-primary open-submit-btn" data-id="${test.id}">
+                    <span class="marks-tag">Max: ${escapeHtml(test.max_marks !== undefined ? test.max_marks : 10)} Marks</span>
+                    <button type="button" class="btn-primary open-submit-btn" data-id="${escapeHtml(test.id)}">
                         <span>Submit Solution</span>
                     </button>
                 </div>
@@ -212,8 +237,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!teacherTestList) return;
         teacherTestList.innerHTML = '';
 
-        if (state.tests.length === 0) {
-            teacherTestList.innerHTML = '<div class="sidebar-item-meta">No tests created yet.</div>';
+        if (!state.tests || state.tests.length === 0) {
+            teacherTestList.innerHTML = '<div class="sidebar-item-meta" style="padding: 12px;">No tests created yet.</div>';
             return;
         }
 
@@ -311,6 +336,35 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
 
+        const deleteTestBtn = document.getElementById('teacher-delete-test-btn');
+        if (deleteTestBtn) {
+            deleteTestBtn.onclick = async () => {
+                if (!confirm(`Are you sure you want to completely delete the test '${test.title}' and all its submissions? This cannot be undone.`)) {
+                    return;
+                }
+                showToast(`Deleting test '${testId}'...`);
+                try {
+                    const res = await fetch(`/api/tests/${testId}`, { method: 'DELETE' });
+                    const d = await res.json();
+                    if (d.success) {
+                        showToast(`Test deleted successfully.`, 'success');
+                        state.selectedTestId = null;
+                        document.getElementById('current-test-name').innerText = 'Select a test to view submissions';
+                        document.getElementById('current-test-meta').innerText = 'Real-time student evaluation records.';
+                        kbCard.style.display = 'none';
+                        if (submissionsTableBody) {
+                            submissionsTableBody.innerHTML = '<tr><td colspan="7" class="table-empty">Select a test to view its submissions.</td></tr>';
+                        }
+                        await loadTests();
+                    } else {
+                        showToast(d.detail || 'Deletion failed.', 'error');
+                    }
+                } catch (err) {
+                    showToast(`Error deleting test: ${err.message}`, 'error');
+                }
+            };
+        }
+
         try {
             const res = await fetch(`/api/tests/${testId}/submissions`);
             const data = await res.json();
@@ -336,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const evalData = sub.evaluation || {};
             const aiScore = evalData.marks_obtained !== undefined ? evalData.marks_obtained : '-';
             const finalMarks = sub.teacher_override !== null && sub.teacher_override !== undefined ? sub.teacher_override : aiScore;
-            const status = evalData.status || 'Evaluated';
+            const status = evalData.status || (sub.evaluation ? 'Evaluated' : 'Pending Evaluation');
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -381,7 +435,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const inspectFilename = document.getElementById('inspect-filename');
     const inspectTabOrig = document.getElementById('inspect-tab-orig');
     const inspectTabProc = document.getElementById('inspect-tab-proc');
+    const inspectTabRaw = document.getElementById('inspect-tab-raw');
+    const inspectTabSegmented = document.getElementById('inspect-tab-segmented');
     const inspectExtractedText = document.getElementById('inspect-extracted-text');
+    const inspectSegmentedAnswers = document.getElementById('inspect-segmented-answers');
     const inspectCopyTextBtn = document.getElementById('inspect-copy-text-btn');
     const inspectReasoning = document.getElementById('inspect-reasoning');
     const inspectCoveredList = document.getElementById('inspect-covered-list');
@@ -432,28 +489,68 @@ document.addEventListener('DOMContentLoaded', () => {
             inspectFilename.innerText = sub.filename || 'solution.pdf';
         }
 
-        // Extracted Text
+        // Extracted Text & Segmented Answers
         inspectExtractedText.innerText = sub.extracted_text || 'No text extracted from document.';
+        inspectExtractedText.style.display = 'block';
+        inspectSegmentedAnswers.style.display = 'none';
+        if (inspectTabRaw) inspectTabRaw.classList.add('active');
+        if (inspectTabSegmented) inspectTabSegmented.classList.remove('active');
 
-        // AI Reasoning & breakdown
-        inspectReasoning.innerText = evalData.reasoning || 'No evaluation reasoning provided.';
-        inspectFeedback.innerText = evalData.constructive_feedback || 'No actionable feedback provided.';
+        // Populate Segmented Answers
+        inspectSegmentedAnswers.innerHTML = '';
+        if (sub.segmented_answers && sub.segmented_answers.length > 0) {
+            sub.segmented_answers.forEach(seg => {
+                const card = document.createElement('div');
+                card.style.border = '1px solid var(--border-color)';
+                card.style.borderRadius = '6px';
+                card.style.padding = '10px';
+                card.style.marginBottom = '10px';
+                card.style.background = '#f9fafb';
+                
+                const qNum = seg.detected_question_number ? `Q${seg.detected_question_number}` : 'Unknown Q';
+                const subQ = seg.sub_question_identifier ? `(${seg.sub_question_identifier})` : '';
+                const mapStatus = seg.mapping_status === 'mapped' ? 
+                    `<span style="color: green; font-weight: 600;">✓ Mapped</span>` : 
+                    `<span style="color: #dc2626; font-weight: 600;">⚠️ ${seg.mapping_status}</span>`;
+                
+                const eres = seg.evaluation_result || {};
+                let scoreBadge = '';
+                if (eres.needs_teacher_review) {
+                    scoreBadge = `<span style="background: #fef08a; padding: 2px 6px; border-radius: 12px; font-size: 0.8rem; color: #854d0e;">Review Required</span>`;
+                } else if (eres.evaluation_status === 'completed') {
+                    scoreBadge = `<span style="background: #dcfce7; padding: 2px 6px; border-radius: 12px; font-size: 0.8rem; color: #166534;">Score: ${eres.marks_awarded}/${eres.max_marks}</span>`;
+                }
+                
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">
+                        <strong>${qNum}${subQ}</strong>
+                        <div>${mapStatus} | Pg ${seg.page_reference || '?'} ${scoreBadge}</div>
+                    </div>
+                    <pre style="white-space: pre-wrap; font-family: inherit; margin: 0; font-size: 0.9rem;">${seg.extracted_answer || '(Empty)'}</pre>
+                    ${eres.evaluation_status === 'completed' ? `
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 0.85rem;">
+                        <strong>Reasoning:</strong> ${eres.reasoning || 'N/A'}<br/>
+                        <strong>Missing:</strong> ${(eres.missing_concepts || []).join(', ') || 'None'}<br/>
+                        <strong>Feedback:</strong> <span style="color: #2563eb;">${eres.feedback || 'N/A'}</span>
+                    </div>` : ''}
+                `;
+                inspectSegmentedAnswers.appendChild(card);
+            });
+        } else {
+            inspectSegmentedAnswers.innerHTML = '<p style="color: #6b7280; text-align: center; margin-top: 1rem;">No segmented answers available.</p>';
+        }
 
-        // Concepts Covered
+        // AI Reasoning & breakdown summary
+        let statusBadge = evalData.status || 'Evaluated';
+        if (evalData.review_count > 0) {
+            statusBadge = `Needs Review (${evalData.review_count})`;
+        }
+        inspectReasoning.innerText = `Evaluated ${evalData.evaluated_count || 0} questions. ${evalData.review_count || 0} answers require teacher review. Status: ${statusBadge}`;
+        inspectFeedback.innerText = 'See segmented answers tab for detailed per-question feedback and scoring.';
+
+        // Clear outdated lists
         inspectCoveredList.innerHTML = '';
-        (evalData.concepts_covered || []).forEach(c => {
-            const li = document.createElement('li');
-            li.innerText = c;
-            inspectCoveredList.appendChild(li);
-        });
-
-        // Concepts Missing
         inspectMissingList.innerHTML = '';
-        (evalData.concepts_missing || []).forEach(m => {
-            const li = document.createElement('li');
-            li.innerText = m;
-            inspectMissingList.appendChild(li);
-        });
 
         // Pre-fill override form
         inspectNewMarks.value = sub.teacher_override !== null ? sub.teacher_override : (evalData.marks_obtained || 0);
@@ -487,6 +584,24 @@ document.addEventListener('DOMContentLoaded', () => {
             inspectTabOrig.classList.remove('active');
             inspectProcImg.style.display = 'block';
             inspectOrigImg.style.display = 'none';
+        });
+    }
+
+    if (inspectTabRaw) {
+        inspectTabRaw.addEventListener('click', () => {
+            inspectTabRaw.classList.add('active');
+            inspectTabSegmented.classList.remove('active');
+            inspectExtractedText.style.display = 'block';
+            inspectSegmentedAnswers.style.display = 'none';
+        });
+    }
+
+    if (inspectTabSegmented) {
+        inspectTabSegmented.addEventListener('click', () => {
+            inspectTabSegmented.classList.add('active');
+            inspectTabRaw.classList.remove('active');
+            inspectSegmentedAnswers.style.display = 'block';
+            inspectExtractedText.style.display = 'none';
         });
     }
 
@@ -653,24 +768,41 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('apply_threshold', document.getElementById('stu-threshold').checked);
 
             try {
-                const res = await fetch(`/api/tests/${state.selectedTestId}/submit`, {
+                // Step 1: Submit and OCR
+                showToast('Processing OCR (Step 1/2)...', 'info');
+                const submitRes = await fetch(`/api/tests/${state.selectedTestId}/submit`, {
                     method: 'POST',
                     body: formData
                 });
-                const data = await res.json();
+                const submitData = await submitRes.json().catch(() => ({}));
+                
+                if (!submitRes.ok || !submitData.success) {
+                    throw new Error(submitData.detail || `OCR Submission failed (HTTP ${submitRes.status}).`);
+                }
+
+                // Step 2: Evaluate
+                showToast('Evaluating Answers (Step 2/2)...', 'info');
+                const evalRes = await fetch(`/api/submissions/${submitData.submission_id}/evaluate`, {
+                    method: 'POST'
+                });
+                const evalData = await evalRes.json().catch(() => ({}));
+                
                 evalLoading.style.display = 'none';
 
-                if (data.success) {
-                    renderEvaluationResult(data);
+                if (evalRes.ok && evalData.success) {
+                    // Merge data for the renderer
+                    submitData.evaluation = evalData.evaluation;
+                    submitData.segmented_answers = evalData.segmented_answers;
+                    renderEvaluationResult(submitData);
                     showToast('Evaluation completed successfully!', 'success');
                 } else {
-                    showToast(data.detail || 'Evaluation failed.', 'error');
+                    showToast(evalData.detail || `Evaluation failed (HTTP ${evalRes.status}).`, 'error');
                     studentSubmitForm.style.display = 'block';
                 }
             } catch (err) {
                 evalLoading.style.display = 'none';
                 studentSubmitForm.style.display = 'block';
-                showToast('Server error during evaluation: ' + err.message, 'error');
+                showToast('Server error during processing: ' + err.message, 'error');
             }
         });
     }
@@ -681,26 +813,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resScore.innerText = ev.marks_obtained !== undefined ? ev.marks_obtained : '-';
         resMaxScore.innerText = ev.max_marks || test.max_marks || 10;
-        resPercentage.innerText = `${ev.percentage || 0}% Overall Accuracy`;
-        resStatusBadge.innerText = ev.status || 'Evaluated';
-        resReasoning.innerText = ev.reasoning || 'Evaluation completed.';
-        resFeedback.innerText = ev.constructive_feedback || 'No specific feedback generated.';
+        
+        let pct = 0;
+        if (ev.max_marks > 0) {
+            pct = Math.round((ev.marks_obtained / ev.max_marks) * 100);
+        }
+        resPercentage.innerText = `${pct}% Overall Score`;
+        
+        let statusBadge = ev.status || 'Evaluated';
+        if (ev.review_count > 0) {
+            statusBadge = `Needs Review (${ev.review_count})`;
+            resStatusBadge.style.background = '#fef08a';
+            resStatusBadge.style.color = '#854d0e';
+        } else {
+            resStatusBadge.style.background = 'var(--primary-color)';
+            resStatusBadge.style.color = 'white';
+        }
+        resStatusBadge.innerText = statusBadge;
+        
+        resReasoning.innerText = `Evaluated ${ev.evaluated_count || 0} questions. ${ev.review_count || 0} answers require teacher review.`;
+        resFeedback.innerText = 'See per-question breakdown for detailed feedback.';
 
-        // Covered concepts
+        // Populate detailed segmented evaluation
         resCoveredList.innerHTML = '';
-        (ev.concepts_covered || []).forEach(c => {
-            const li = document.createElement('li');
-            li.innerText = c;
-            resCoveredList.appendChild(li);
-        });
-
-        // Missing concepts
-        resMissingList.innerHTML = '';
-        (ev.concepts_missing || []).forEach(m => {
-            const li = document.createElement('li');
-            li.innerText = m;
-            resMissingList.appendChild(li);
-        });
+        resMissingList.innerHTML = ''; // We can use this for the segmented breakdown
+        
+        const breakdownContainer = document.createElement('div');
+        breakdownContainer.style.marginTop = '1rem';
+        
+        const segments = data.segmented_answers || [];
+        if (segments.length === 0) {
+            breakdownContainer.innerHTML = '<p>No questions mapped.</p>';
+        } else {
+            segments.forEach(seg => {
+                const card = document.createElement('div');
+                card.style.border = '1px solid var(--border-color)';
+                card.style.borderRadius = '6px';
+                card.style.padding = '10px';
+                card.style.marginBottom = '10px';
+                card.style.background = '#f9fafb';
+                
+                const qNum = seg.detected_question_number ? `Q${seg.detected_question_number}` : 'Unknown Q';
+                const subQ = seg.sub_question_identifier ? `(${seg.sub_question_identifier})` : '';
+                const eres = seg.evaluation_result || {};
+                
+                let scoreBadge = '';
+                if (eres.needs_teacher_review) {
+                    scoreBadge = `<span style="background: #fef08a; padding: 2px 6px; border-radius: 12px; font-size: 0.8rem; color: #854d0e;">Review Required</span>`;
+                } else {
+                    scoreBadge = `<span style="background: #dcfce7; padding: 2px 6px; border-radius: 12px; font-size: 0.8rem; color: #166534;">Score: ${eres.marks_awarded}/${eres.max_marks}</span>`;
+                }
+                
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">
+                        <strong>${qNum}${subQ}</strong>
+                        <div>${scoreBadge}</div>
+                    </div>
+                    <div style="font-size: 0.9rem; margin-bottom: 8px;">
+                        <strong>Answer:</strong><br/>
+                        <span style="color: #4b5563;">${seg.extracted_answer || '(Empty)'}</span>
+                    </div>
+                    <div style="font-size: 0.9rem;">
+                        <strong>Reasoning:</strong> ${eres.reasoning || 'N/A'}<br/>
+                        <strong>Missing/Issues:</strong> ${(eres.missing_concepts || []).join(', ') || 'None'}<br/>
+                        <strong>Feedback:</strong> <span style="color: #2563eb;">${eres.feedback || 'N/A'}</span>
+                    </div>
+                `;
+                breakdownContainer.appendChild(card);
+            });
+        }
+        
+        // Append breakdown to one of the lists to fit in the current UI without changing HTML
+        resMissingList.appendChild(breakdownContainer);
 
         // Raw text & preview
         resExtractedText.innerText = data.extracted_text || 'No text extracted.';
@@ -828,19 +1012,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const saveTestBtn = document.getElementById('save-test-btn');
+    let isCreatingTest = false;
+
     if (createTestForm) {
         createTestForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (isCreatingTest) return;
+
+            const newIdInput = document.getElementById('new-test-id');
+            const newTitleInput = document.getElementById('new-test-title');
+            const newSubjectInput = document.getElementById('new-test-subject');
+            const newMarksInput = document.getElementById('new-test-marks');
+            const newDueInput = document.getElementById('new-test-due');
+            const newRubricInput = document.getElementById('new-test-rubric');
+
             const payload = {
-                id: document.getElementById('new-test-id').value.trim(),
-                title: document.getElementById('new-test-title').value.trim(),
-                subject: document.getElementById('new-test-subject').value.trim(),
-                max_marks: parseFloat(document.getElementById('new-test-marks').value),
-                due_date: document.getElementById('new-test-due').value,
-                question: newTestQuestions.value.trim(),
-                model_answer: newTestModelAns.value.trim(),
-                rubric: document.getElementById('new-test-rubric').value.trim()
+                id: newIdInput ? newIdInput.value.trim() : '',
+                title: newTitleInput ? newTitleInput.value.trim() : '',
+                subject: newSubjectInput ? newSubjectInput.value.trim() : '',
+                max_marks: newMarksInput ? parseFloat(newMarksInput.value) : 10,
+                due_date: newDueInput ? newDueInput.value : '',
+                question: newTestQuestions ? newTestQuestions.value.trim() : '',
+                model_answer: newTestModelAns ? newTestModelAns.value.trim() : '',
+                rubric: newRubricInput ? newRubricInput.value.trim() : ''
             };
+
+            if (!payload.title || !payload.subject || !payload.question || !payload.model_answer) {
+                showToast('Please fill in all required test fields.', 'error');
+                return;
+            }
+
+            isCreatingTest = true;
+            if (saveTestBtn) {
+                saveTestBtn.disabled = true;
+                saveTestBtn.innerHTML = '<span>Publishing & Indexing...</span> ⏳';
+            }
 
             try {
                 const res = await fetch('/api/tests', {
@@ -848,41 +1055,56 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                const data = await res.json();
-                if (data.success) {
-                    // If files were attached to the upload zones, ingest the original files
-                    if ((qpFileInput && qpFileInput.files.length > 0) || (modelPdfInput && modelPdfInput.files.length > 0)) {
-                        try {
-                            const formData = new FormData();
-                            if (qpFileInput && qpFileInput.files.length > 0) {
-                                formData.append('question_paper', qpFileInput.files[0]);
-                            }
-                            if (modelPdfInput && modelPdfInput.files.length > 0) {
-                                formData.append('model_answer', modelPdfInput.files[0]);
-                            }
-                            formData.append('question_text', payload.question);
-                            formData.append('model_answer_text', payload.model_answer);
-                            formData.append('rubric_text', payload.rubric);
-
-                            await fetch(`/api/tests/${payload.id}/ingest`, {
-                                method: 'POST',
-                                body: formData
-                            });
-                        } catch (ingestErr) {
-                            console.warn('File ingestion warning:', ingestErr);
-                        }
-                    }
-
-                    createTestModal.style.display = 'none';
-                    createTestForm.reset();
-                    showToast(`Test '${payload.id}' published & knowledge base indexed!`, 'success');
-                    await loadTests();
-                    selectTeacherTest(payload.id);
-                } else {
-                    showToast(data.detail || 'Failed to create test.', 'error');
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.success) {
+                    throw new Error(data.detail || `Failed to create test (HTTP ${res.status}).`);
                 }
+
+                // If files were attached to the upload zones, ingest the original files
+                if ((qpFileInput && qpFileInput.files.length > 0) || (modelPdfInput && modelPdfInput.files.length > 0)) {
+                    showToast('Uploading and archiving attached documents...', 'info');
+                    try {
+                        const formData = new FormData();
+                        if (qpFileInput && qpFileInput.files.length > 0) {
+                            formData.append('question_paper', qpFileInput.files[0]);
+                        }
+                        if (modelPdfInput && modelPdfInput.files.length > 0) {
+                            formData.append('model_answer', modelPdfInput.files[0]);
+                        }
+                        formData.append('question_text', payload.question);
+                        formData.append('model_answer_text', payload.model_answer);
+                        formData.append('rubric_text', payload.rubric);
+
+                        await fetch(`/api/tests/${data.test?.id || payload.id}/ingest`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                    } catch (ingestErr) {
+                        console.warn('File ingestion notice:', ingestErr);
+                    }
+                }
+
+                createTestModal.style.display = 'none';
+                createTestForm.reset();
+                if (qpDropZone) {
+                    qpDropZone.innerHTML = '<span>📄 Drag & drop Question Paper PDF / Image here, or <strong style="color: var(--accent-indigo);">click to browse</strong></span>';
+                }
+                if (modelDropZone) {
+                    modelDropZone.innerHTML = '<span>📑 Drag & drop Solution Key PDF here, or <strong style="color: var(--accent-indigo);">click to browse</strong></span>';
+                }
+
+                showToast(`Test '${payload.id}' published successfully!`, 'success');
+                await loadTests();
+                selectTeacherTest(data.test?.id || payload.id);
             } catch (err) {
-                showToast('Error publishing test.', 'error');
+                console.error('Error publishing test:', err);
+                showToast(err.message || 'Error publishing test.', 'error');
+            } finally {
+                isCreatingTest = false;
+                if (saveTestBtn) {
+                    saveTestBtn.disabled = false;
+                    saveTestBtn.innerHTML = 'Publish Test to Student Portal';
+                }
             }
         });
     }
@@ -1007,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getEngineLabel(val) {
         const canonical = (val || '').toLowerCase().trim();
         if (canonical === 'chandra') return 'Chandra OCR';
-        if (canonical === 'surya') return 'Surya OCR';
+        if (canonical === 'qwen2.5vl') return 'Qwen2.5-VL OCR';
         if (canonical === 'standard') return 'Standard OCR';
         return val || 'Standard OCR';
     }
@@ -1052,25 +1274,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial synchronization on page load
     syncOcrEngine(state.selectedOcrEngine, 'init');
 
-    async function checkSuryaAvailability() {
-        if (!suryaStatusBadge) return;
-        try {
-            const res = await fetch('/api/ocr/status');
-            const data = await res.json();
-            if (data.surya_ocr?.available) {
-                suryaStatusBadge.innerText = 'Surya OCR Ready';
-                suryaStatusBadge.style.background = '#e0f2fe';
-                suryaStatusBadge.style.color = '#0284c7';
-            } else {
-                suryaStatusBadge.innerText = 'Surya OCR Unavailable';
-                suryaStatusBadge.style.background = '#fee2e2';
-                suryaStatusBadge.style.color = '#ef4444';
-            }
-        } catch {
-            // Keep existing badge
-        }
-    }
-    checkSuryaAvailability();
 
     if (labProcessBtn) {
         labProcessBtn.addEventListener('click', async () => {
@@ -1162,8 +1365,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Utility Helpers
     function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>'"]/g, tag => ({
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>'"]/g, tag => ({
             '&': '&amp;',
             '<': '&lt;',
             '>': '&gt;',

@@ -47,8 +47,8 @@
                     <span class="global-ocr-label">OCR Engine:</span>
                     <select id="global-ocr-engine" class="global-ocr-select" aria-label="Global OCR Engine">
                         <option value="standard" selected>Standard OCR</option>
-                        <option value="surya">Surya OCR</option>
                         <option value="chandra">Chandra OCR</option>
+                        <option value="qwen2.5vl">Qwen2.5-VL OCR</option>
                     </select>
                 </div>
                 <div class="status-indicator">
@@ -72,7 +72,7 @@
                     <p class="portal-subtitle">Select an active test posted by your instructor to upload your handwritten solution sheet or PDF.</p>
                 </div>
                 <div class="portal-stats-row">
-                    <div class="chip-badge"><span id="active-test-count">1</span> Active Tests</div>
+                    <div class="chip-badge"><span id="active-test-count">0</span> Active Tests</div>
                 </div>
             </div>
 
@@ -387,6 +387,7 @@
                             <span style="font-weight: 600; color: var(--text-secondary, #64748b);">Knowledge Base:</span>
                             <span id="teacher-kb-status-badge" style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.78rem;">Checking...</span>
                             <button type="button" class="btn-text-link" id="teacher-reingest-btn" style="font-size: 0.78rem; text-decoration: underline; cursor: pointer; color: var(--accent-indigo);" title="Re-process knowledge ingestion">🔄 Re-index</button>
+                            <button type="button" class="btn-text-link" id="teacher-delete-test-btn" style="font-size: 0.78rem; text-decoration: underline; cursor: pointer; color: #ef4444; margin-left: 4px;" title="Delete this test entirely">🗑️ Delete Test</button>
                         </div>
                     </div>
 
@@ -495,13 +496,20 @@
                                 </div>
                             </div>
 
-                            <!-- Right: Extracted Digital Text -->
+                            <!-- Right: Extracted Digital Text & Segmentation -->
                             <div class="inspect-panel">
-                                <div class="inspect-panel-header">
-                                    <h4>📝 Extracted Digital Text (OCR Output)</h4>
+                                <div class="inspect-panel-header" style="justify-content: space-between;">
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <h4>📝 Extracted Text</h4>
+                                        <div class="inspect-tabs-mini">
+                                            <button type="button" class="btn-mini-tab active" id="inspect-tab-raw">Raw OCR</button>
+                                            <button type="button" class="btn-mini-tab" id="inspect-tab-segmented">Segmented Answers</button>
+                                        </div>
+                                    </div>
                                     <button type="button" class="btn-pill" id="inspect-copy-text-btn">Copy Text</button>
                                 </div>
                                 <pre class="raw-text-box inspect-text-box" id="inspect-extracted-text">Extracted text output...</pre>
+                                <div class="segmented-answers-box inspect-text-box" id="inspect-segmented-answers" style="display: none; overflow-y: auto; background: #fff; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px;"></div>
                             </div>
                         </div>
 
@@ -597,13 +605,13 @@
 
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                             <h3 class="box-title" style="margin-bottom: 0;">OCR Engine</h3>
-                            <span class="engine-badge" id="surya-status-badge" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; background: #e0f2fe; color: #0284c7; font-weight: 600;">Surya OCR Ready</span>
+
                         </div>
                         <div class="form-group" style="margin-bottom: 1.15rem;">
                             <select id="lab-ocr-engine" class="form-input" style="padding: 0.55rem 0.75rem; font-weight: 600; cursor: pointer; border-radius: var(--radius-sm);">
                                 <option value="standard" selected>Standard OCR</option>
-                                <option value="surya">Surya OCR</option>
                                 <option value="chandra">Chandra OCR</option>
+                                <option value="qwen2.5vl">Qwen2.5-VL OCR</option>
                             </select>
                         </div>
 

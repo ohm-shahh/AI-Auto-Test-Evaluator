@@ -1,7 +1,0 @@
-Answer 1:
-In B-Trees, data pointers are stored in both internal and leaf nodes. In B+ Trees, data pointers are stored only in leaf nodes, and leaf nodes are linked as a linked list for fast sequential range queries.
-Rubric: B-Tree internal data: 3 marks; B+ leaf chaining & range queries: 3 marks.
-
-Answer 2:
-AVL rotations rebalance trees with height difference > 1. LL rotation is a single right rotation. LR rotation is a left rotation on left child followed by right rotation on root.
-Rubric: LL rotation: 2 marks; LR rotation: 2 marks.
